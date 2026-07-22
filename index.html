@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Amethyst</title>
+  <style>
+    /* (same CSS as you had) */
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- same HTML layout as before -->
+  </div>
+
+  <script>
+    const API_BASE = "https://YOUR-RENDER-APP.onrender.com";
+
+    const tabsEl = document.getElementById("tabs");
+    const viewFrame = document.getElementById("view-frame");
+    const viewDiv = document.getElementById("view-div");
+    const urlEl = document.getElementById("url");
+
+    let tabs = [];
+    let activeTab = null;
+
+    function showFrame(url) {
+      viewDiv.style.display = "none";
+      viewFrame.style.display = "block";
+      viewFrame.src = url;
+    }
+
+    function showDiv() {
+      viewFrame.style.display = "none";
+      viewDiv.style.display = "block";
+    }
+
+    function setActiveTab(tabId) {
+      activeTab = tabId;
+      document.querySelectorAll(".tab").forEach(t => {
+        t.classList.toggle("active", t.dataset.id === tabId);
+      });
+
+      const tab = tabs.find(t => t.id === tabId);
+      if (!tab) return;
+
+      if (tab.mode === "external") {
+        showFrame(tab.url);
+        urlEl.value = tab.url === "about:blank" ? "" : tab.url;
+      } else if (tab.mode === "search") {
+        renderSearch(tab.query);
+        urlEl.value = tab.query;
+      } else if (tab.mode === "weather") {
+        renderWeather();
+        urlEl.value = "";
+      } else if (tab.mode === "system") {
+        renderSystem();
+        urlEl.value = "";
+      }
+    }
+
+    function closeTab(tabId) {
+      const index = tabs.findIndex(t => t.id === tabId);
+      if (index === -1) return;
+
+      const tabBtn = document.querySelector(`.tab[data-id="${tabId}"]`);
+      tabBtn.remove();
+
+      tabs.splice(index, 1);
+
+      if (activeTab === tabId) {
+        if (tabs.length > 0) {
+          setActiveTab(tabs[0].id);
+        } else {
+          viewFrame.style.display = "none";
+          viewDiv.style.display = "none";
+          activeTab = null;
+        }
+      }
+    }
+
+    function newTab() {
+      const id = Math.random().toString(36).slice(2);
+
+      const tab = {
+        id,
+        mode: "external",
+        url: "about:blank",
+        query: ""
+      };
+
+      tabs.push(tab);
+
+      const tabBtn = document.createElement("div");
+      tabBtn.className = "tab";
+      tabBtn.dataset.id = id;
+
+      tabBtn.innerHTML = `
+        <span>New Tab</span>
+        <span onclick="event.stopPropagation(); closeTab('${id}')" style="cursor:pointer;">✕</span>
+      `;
+
+      tabBtn.onclick = () => setActiveTab(id);
+
+      tabsEl.insertBefore(tabBtn, tabsEl.firstElementChild);
+
+      setActiveTab(id);
+    }
+
+    function openWeather() {
+      if (!activeTab) newTab();
+
+      const tab = tabs.find(t => t.id === activeTab);
+      tab.mode = "weather";
+
+      const tabBtn = document.querySelector(`.tab[data-id="${activeTab}"] span:first-child`);
+      tabBtn.textContent = "Weather";
+
+      renderWeather();
+    }
+
+    async function renderWeather() {
+      showDiv();
+      viewDiv.innerHTML = `<div class="results-title">Weather</div><div>Loading…</div>`;
+
+      try {
+        const res = await fetch(`${API_BASE}/weather`);
+        const html = await res.text();
+
+        const temp = html.match(/Temperature:<\/strong>\s*([^<]+)/)?.[1] || "N/A";
+        const wind = html.match(/Wind Speed:<\/strong>\s*([^<]+)/)?.[1] || "N/A";
+        const code = html.match(/Weather Code:<\/strong>\s*([^<]+)/)?.[1] || "N/A";
+
+        viewDiv.innerHTML = `
+          <div class="results-title">Weather — Opononi</div>
+          <div class="info-card">
+            <p><strong>Temperature:</strong> ${temp}</p>
+            <p><strong>Wind Speed:</strong> ${wind}</p>
+            <p><strong>Weather Code:</strong> ${code}</p>
+          </div>
+        `;
+      } catch {
+        viewDiv.innerHTML = `<div class="results-title">Weather</div><div>Failed to load.</div>`;
+      }
+    }
+
+    function openSystem() {
+      if (!activeTab) newTab();
+
+      const tab = tabs.find(t => t.id === activeTab);
+      tab.mode = "system";
+
+      const tabBtn = document.querySelector(`.tab[data-id="${activeTab}"] span:first-child`);
+      tabBtn.textContent = "System Info";
+
+      renderSystem();
+    }
+
+    async function renderSystem() {
+      showDiv();
+      viewDiv.innerHTML = `<div class="results-title">System Info</div><div>Loading…</div>`;
+
+      try {
+        const res = await fetch(`${API_BASE}/system`);
+        const html = await res.text();
+
+        const cpu = html.match(/CPU Usage:<\/strong>\s*([^<]+)/)?.[1] || "N/A";
+        const ram = html.match(/RAM Usage:<\/strong>\s*([^<]+)/)?.[1] || "N/A";
+        const disk = html.match(/Disk Usage:<\/strong>\s*([^<]+)/)?.[1] || "N/A";
+        const uptime = html.match(/Uptime:<\/strong>\s*([^<]+)/)?.[1] || "N/A";
+
+        viewDiv.innerHTML = `
+          <div class="results-title">System Info</div>
+          <div class="info-card">
+            <p><strong>CPU Usage:</strong> ${cpu}</p>
+            <p><strong>RAM Usage:</strong> ${ram}</p>
+            <p><strong>Disk Usage:</strong> ${disk}</p>
+            <p><strong>Uptime:</strong> ${uptime}</p>
+          </div>
+        `;
+      } catch {
+        viewDiv.innerHTML = `<div class="results-title">System Info</div><div>Failed to load.</div>`;
+      }
+    }
+
+    async function renderSearch(query) {
+      showDiv();
+      viewDiv.innerHTML = `<div class="results-title">Search results for: ${query}</div><div>Loading…</div>`;
+      // you can later switch this to use /api/search if you want
+    }
+
+    function loadPage() {
+      let value = urlEl.value.trim();
+      if (!value) return;
+
+      if (!value.startsWith("http://") && !value.startsWith("https://")) {
+        const searchUrl = "https://www.bing.com/?q=" + encodeURIComponent(value);
+
+        if (!activeTab) newTab();
+
+        const tab = tabs.find(t => t.id === activeTab);
+        tab.mode = "external";
+        tab.url = searchUrl;
+
+        const tabBtn = document.querySelector(`.tab[data-id="${activeTab}"] span:first-child`);
+        tabBtn.textContent = value;
+
+        showFrame(searchUrl);
+        return;
+      }
+
+      if (!activeTab) newTab();
+
+      const tab = tabs.find(t => t.id === activeTab);
+      tab.mode = "external";
+      tab.url = value;
+
+      const tabBtn = document.querySelector(`.tab[data-id="${activeTab}"] span:first-child`);
+      tabBtn.textContent = value.replace(/^https?:\/\//, "");
+
+      showFrame(value);
+    }
+
+    urlEl.addEventListener("keydown", e => {
+      if (e.key === "Enter") loadPage();
+    });
+
+    async function saveNote() {
+      const text = prompt("Note:");
+      if (!text) return;
+
+      const res = await fetch(`${API_BASE}/api/note`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text })
+      });
+      const data = await res.json();
+      alert("Saved note: " + data.file);
+    }
+
+    newTab();
+  </script>
+</body>
+</html>
