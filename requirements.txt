@@ -3,3 +3,4 @@ gunicorn
 requests
 psutil
 duckduckgo-search
+python-dotenv
