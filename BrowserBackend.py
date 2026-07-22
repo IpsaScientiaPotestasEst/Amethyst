@@ -1,14 +1,15 @@
 from flask import Flask, request, jsonify, Response
+from flask_cors import CORS
 import os
 import datetime
 import platform
 import time
-
 import requests
 import psutil
 from duckduckgo_search import DDGS
 
 app = Flask(__name__)
+CORS(app)
 
 # ---------- SEARCH (REAL DUCKDUCKGO) ----------
 
