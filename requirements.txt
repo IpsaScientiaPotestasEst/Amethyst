@@ -4,3 +4,4 @@ requests
 psutil
 duckduckgo-search
 python-dotenv
+flask-cors
